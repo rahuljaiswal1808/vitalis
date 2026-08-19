@@ -6,6 +6,8 @@ library only; it does **not** do face matching / identity verification.
 
 > Built from the feature specification in `docs/`. Section references below (e.g. §4/F4)
 > point back to that document.
+>
+> **New to the library? Start with the [Integration & Usage Guide](docs/USAGE.md).**
 
 ## Modules
 
