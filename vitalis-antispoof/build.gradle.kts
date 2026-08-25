@@ -29,5 +29,4 @@ dependencies {
     implementation(libs.camera.core)
     // Passive tier (scaffold; no validated model shipped — see PassiveSpoofScorer docs, §5/§10.5).
     implementation(libs.tensorflow.lite)
-    implementation(libs.tensorflow.lite.support)
 }

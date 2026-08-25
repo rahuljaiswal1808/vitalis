@@ -1,5 +1,7 @@
 # Vitalis — Android Liveness Detection Library
 
+[![CI](https://github.com/rahuljaiswal1808/vitalis/actions/workflows/ci.yml/badge.svg)](https://github.com/rahuljaiswal1808/vitalis/actions/workflows/ci.yml)
+
 Vitalis detects, at capture time, that a **live person** is in front of the **front-facing
 camera** — not a printed photo, a screen replay, or a static image. It is a *liveness*
 library only; it does **not** do face matching / identity verification.
@@ -22,6 +24,13 @@ library only; it does **not** do face matching / identity verification.
 
 Depend on `vitalis-antispoof` (it re-exports core/camera/face) to build your own UI, or add
 `vitalis-ui` for a ready-made screen.
+
+### Web / JavaScript
+
+A browser port lives in [`web/`](web/) (npm package `vitalis-liveness`): a 1:1 TypeScript
+port of the core state machine plus adapters for `getUserMedia` (front-lens), MediaPipe
+face detection, and a drop-in overlay. Same config, states, and failure reasons as Android.
+See [web/README.md](web/README.md).
 
 ## Architecture at a glance
 
