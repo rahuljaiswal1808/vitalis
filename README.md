@@ -1,5 +1,7 @@
 # Vitalis — Android Liveness Detection Library
 
+[![CI](https://github.com/rahuljaiswal1808/vitalis/actions/workflows/ci.yml/badge.svg)](https://github.com/rahuljaiswal1808/vitalis/actions/workflows/ci.yml)
+
 Vitalis detects, at capture time, that a **live person** is in front of the **front-facing
 camera** — not a printed photo, a screen replay, or a static image. It is a *liveness*
 library only; it does **not** do face matching / identity verification.
