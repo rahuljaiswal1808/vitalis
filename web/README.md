@@ -124,7 +124,23 @@ npm run typecheck # tsc across all sources (browser code included)
 npm run build     # tsup → ESM + CJS + .d.ts + standalone IIFE (window.Vitalis)
 ```
 
-See `examples/index.html` for a runnable `<script>`-tag demo.
+## Try the demo in a browser
+
+A ready-to-run demo lives in `examples/` — a full page with challenge selection, live
+status, pass/fail, and a preview of the captured frame.
+
+```bash
+cd web
+npm install
+npm run demo     # builds the library, then serves http://localhost:5173
+```
+
+Open **http://localhost:5173/** and click **Start liveness**. `getUserMedia` requires a
+secure origin, and `localhost` counts — so the demo works over plain http locally with no
+TLS setup. The MediaPipe wasm + face model load from a CDN in the demo; self-host them (and
+set a CSP) for production.
+
+`npm run serve` serves without rebuilding if `dist/` already exists.
 
 ## License
 

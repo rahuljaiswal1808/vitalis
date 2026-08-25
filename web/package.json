@@ -19,20 +19,33 @@
       "require": "./dist/core/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "npm run build && node examples/serve.mjs",
+    "serve": "node examples/serve.mjs"
   },
-  "keywords": ["liveness", "anti-spoofing", "face", "biometrics", "webcam", "kyc"],
+  "keywords": [
+    "liveness",
+    "anti-spoofing",
+    "face",
+    "biometrics",
+    "webcam",
+    "kyc"
+  ],
   "peerDependencies": {
     "@mediapipe/tasks-vision": "^0.10.0"
   },
   "peerDependenciesMeta": {
-    "@mediapipe/tasks-vision": { "optional": true }
+    "@mediapipe/tasks-vision": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@mediapipe/tasks-vision": "^0.10.18",

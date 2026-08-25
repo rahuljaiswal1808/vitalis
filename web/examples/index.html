@@ -3,58 +3,154 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vitalis Liveness — script-tag demo</title>
+  <title>Vitalis Liveness — Demo</title>
   <style>
-    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
-    #stage { position: relative; width: 100vw; height: 70vh; background: #000; overflow: hidden; }
-    #bar { padding: 16px; display: flex; gap: 12px; align-items: center; }
-    button { padding: 10px 16px; font-size: 16px; border: 0; border-radius: 8px; cursor: pointer; }
-    #result { font-size: 18px; }
+    :root {
+      --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+      --muted: #8b949e; --accent: #2f81f7; --ok: #3fb950; --bad: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+    }
+    header { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px; display: grid;
+           grid-template-columns: 1fr 320px; gap: 24px; }
+    @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+
+    #stage {
+      position: relative; width: 100%; aspect-ratio: 3 / 4; background: #000;
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+    }
+    #placeholder {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; color: var(--muted); font-size: 15px; text-align: center; padding: 24px;
+    }
+
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .panel h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    label.row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; }
+    input[type="number"] { width: 56px; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+    button {
+      width: 100%; padding: 11px 16px; font-size: 15px; font-weight: 600; border: 0;
+      border-radius: 8px; cursor: pointer; background: var(--accent); color: #fff; margin-top: 8px;
+    }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    #status { margin-top: 16px; font-size: 15px; min-height: 22px; }
+    #result { margin-top: 12px; font-size: 15px; font-weight: 600; }
+    #result.ok { color: var(--ok); } #result.bad { color: var(--bad); }
+    #capture { margin-top: 12px; max-width: 160px; border-radius: 8px; border: 1px solid var(--border); display: none; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
+    code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
   </style>
 </head>
 <body>
-  <div id="stage"></div>
-  <div id="bar">
-    <button id="start">Start liveness</button>
-    <span id="result">Ready.</span>
-  </div>
+  <header>
+    <h1>Vitalis — Browser Liveness Demo</h1>
+    <p>Front-camera lock · single-face gating · active challenge-response (blink / head-turn / smile)</p>
+  </header>
 
-  <!--
-    Vitalis standalone build. MediaPipe JS is bundled inside vitalis.global.js, but the
-    WASM runtime + face model are loaded at runtime from the paths you pass below.
-    In production, self-host these files (and set an appropriate CSP) rather than using a CDN.
-  -->
+  <main>
+    <div>
+      <div id="stage"><div id="placeholder">Camera preview appears here.<br>Choose challenges, then press Start.</div></div>
+      <div id="status"></div>
+      <div id="result"></div>
+      <img id="capture" alt="Captured verified frame" />
+    </div>
+
+    <aside>
+      <div class="panel">
+        <h2>Challenges</h2>
+        <label class="row"><input type="checkbox" value="blink" checked /> Blink</label>
+        <label class="row"><input type="checkbox" value="head_turn_left" /> Head turn left</label>
+        <label class="row"><input type="checkbox" value="head_turn_right" /> Head turn right</label>
+        <label class="row"><input type="checkbox" value="smile" /> Smile</label>
+        <label class="row" style="margin-top:8px">Required count <input type="number" id="count" min="1" max="4" value="1" /></label>
+
+        <button id="start">Start liveness</button>
+        <button id="stop" class="secondary" disabled>Stop</button>
+
+        <p class="hint">
+          Requires a webcam and camera permission. Runs fully on-device.
+          MediaPipe wasm + model load from a CDN — self-host them and set a CSP for production.
+          <code>getUserMedia</code> needs HTTPS or <code>localhost</code>.
+        </p>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Standalone build: MediaPipe JS bundled in; wasm + model load at runtime from the paths below. -->
   <script src="../dist/vitalis.global.js"></script>
   <script>
     const WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm";
     const MODEL_URL =
       "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-    const stage = document.getElementById("stage");
-    const resultEl = document.getElementById("result");
+    const $ = (s) => document.querySelector(s);
+    const stage = $("#stage"), placeholder = $("#placeholder");
+    const statusEl = $("#status"), resultEl = $("#result"), captureEl = $("#capture");
+    const startBtn = $("#start"), stopBtn = $("#stop");
+    let handle = null;
 
-    document.getElementById("start").addEventListener("click", async () => {
-      resultEl.textContent = "Loading model…";
+    function selectedChallenges() {
+      return [...document.querySelectorAll('aside input[type="checkbox"]:checked')].map((c) => c.value);
+    }
+
+    function reset(msg) {
+      statusEl.textContent = msg || "";
+      resultEl.textContent = ""; resultEl.className = "";
+      captureEl.style.display = "none"; captureEl.removeAttribute("src");
+      startBtn.disabled = false; stopBtn.disabled = true;
+      placeholder.style.display = "flex";
+    }
+
+    startBtn.addEventListener("click", async () => {
+      const challenges = selectedChallenges();
+      if (challenges.length === 0) { reset("Pick at least one challenge."); return; }
+      const count = Math.min(Number($("#count").value) || 1, challenges.length || 1);
+
+      startBtn.disabled = true; stopBtn.disabled = false;
+      placeholder.style.display = "none";
+      resultEl.textContent = ""; resultEl.className = "";
+      captureEl.style.display = "none";
+      statusEl.textContent = "Loading model…";
+
       try {
-        await Vitalis.mountLiveness(stage, {
+        handle = await Vitalis.mountLiveness(stage, {
           wasmBasePath: WASM_BASE,
           modelAssetPath: MODEL_URL,
-          config: {
-            challengeTypes: ["blink", "head_turn_left", "head_turn_right", "smile"],
-            requiredChallengeCount: 2,
-          },
+          config: { challengeTypes: challenges, requiredChallengeCount: count },
+          onStateChanged: (s) => { statusEl.textContent = Vitalis.LivenessPrompts.forState(s); },
           onResult: (r) => {
-            resultEl.textContent = r.ok
-              ? `PASS — confidence ${r.confidence.toFixed(2)}` +
-                (r.capturedFrame ? ` (${r.capturedFrame.size} bytes captured)` : "")
-              : `FAIL — ${Vitalis.LivenessPrompts.forFailure(r.reason)} (${r.reason})`;
+            stopBtn.disabled = true; startBtn.disabled = false;
+            placeholder.style.display = "flex";
+            if (r.ok) {
+              resultEl.className = "ok";
+              resultEl.textContent = `PASS — confidence ${r.confidence.toFixed(2)}`;
+              if (r.capturedFrame) {
+                captureEl.src = URL.createObjectURL(r.capturedFrame);
+                captureEl.style.display = "block";
+              }
+            } else {
+              resultEl.className = "bad";
+              resultEl.textContent = `FAIL — ${Vitalis.LivenessPrompts.forFailure(r.reason)} (${r.reason})`;
+            }
           },
-          onError: (e) => { resultEl.textContent = `Error: ${e.code} — ${e.message}`; },
+          onError: (e) => { reset(""); resultEl.className = "bad"; resultEl.textContent = `Error: ${e.code} — ${e.message}`; },
         });
       } catch (err) {
-        resultEl.textContent = "Failed to start: " + err;
+        reset(""); resultEl.className = "bad";
+        resultEl.textContent = "Failed to start — could not load the face model (check network / CSP). " + (err?.message || "");
       }
     });
+
+    stopBtn.addEventListener("click", () => { handle?.stop(); reset("Stopped."); });
   </script>
 </body>
 </html>
