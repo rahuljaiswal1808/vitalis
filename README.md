@@ -23,6 +23,13 @@ library only; it does **not** do face matching / identity verification.
 Depend on `vitalis-antispoof` (it re-exports core/camera/face) to build your own UI, or add
 `vitalis-ui` for a ready-made screen.
 
+### Web / JavaScript
+
+A browser port lives in [`web/`](web/) (npm package `vitalis-liveness`): a 1:1 TypeScript
+port of the core state machine plus adapters for `getUserMedia` (front-lens), MediaPipe
+face detection, and a drop-in overlay. Same config, states, and failure reasons as Android.
+See [web/README.md](web/README.md).
+
 ## Architecture at a glance
 
 ```

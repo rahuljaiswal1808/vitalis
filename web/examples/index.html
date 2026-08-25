@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vitalis Liveness — script-tag demo</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+    #stage { position: relative; width: 100vw; height: 70vh; background: #000; overflow: hidden; }
+    #bar { padding: 16px; display: flex; gap: 12px; align-items: center; }
+    button { padding: 10px 16px; font-size: 16px; border: 0; border-radius: 8px; cursor: pointer; }
+    #result { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="bar">
+    <button id="start">Start liveness</button>
+    <span id="result">Ready.</span>
+  </div>
+
+  <!--
+    Vitalis standalone build. MediaPipe JS is bundled inside vitalis.global.js, but the
+    WASM runtime + face model are loaded at runtime from the paths you pass below.
+    In production, self-host these files (and set an appropriate CSP) rather than using a CDN.
+  -->
+  <script src="../dist/vitalis.global.js"></script>
+  <script>
+    const WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm";
+    const MODEL_URL =
+      "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+    const stage = document.getElementById("stage");
+    const resultEl = document.getElementById("result");
+
+    document.getElementById("start").addEventListener("click", async () => {
+      resultEl.textContent = "Loading model…";
+      try {
+        await Vitalis.mountLiveness(stage, {
+          wasmBasePath: WASM_BASE,
+          modelAssetPath: MODEL_URL,
+          config: {
+            challengeTypes: ["blink", "head_turn_left", "head_turn_right", "smile"],
+            requiredChallengeCount: 2,
+          },
+          onResult: (r) => {
+            resultEl.textContent = r.ok
+              ? `PASS — confidence ${r.confidence.toFixed(2)}` +
+                (r.capturedFrame ? ` (${r.capturedFrame.size} bytes captured)` : "")
+              : `FAIL — ${Vitalis.LivenessPrompts.forFailure(r.reason)} (${r.reason})`;
+          },
+          onError: (e) => { resultEl.textContent = `Error: ${e.code} — ${e.message}`; },
+        });
+      } catch (err) {
+        resultEl.textContent = "Failed to start: " + err;
+      }
+    });
+  </script>
+</body>
+</html>

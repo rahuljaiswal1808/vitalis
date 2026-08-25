@@ -1,0 +1,43 @@
+{
+  "name": "vitalis-liveness",
+  "version": "1.0.0",
+  "description": "Browser liveness detection: front-camera lock, single-face gating, active challenge-response (blink/head-turn/smile). Framework-free core.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js",
+      "require": "./dist/core/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["liveness", "anti-spoofing", "face", "biometrics", "webcam", "kyc"],
+  "peerDependencies": {
+    "@mediapipe/tasks-vision": "^0.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@mediapipe/tasks-vision": { "optional": true }
+  },
+  "devDependencies": {
+    "@mediapipe/tasks-vision": "^0.10.18",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
