@@ -142,6 +142,16 @@ set a CSP) for production.
 
 `npm run serve` serves without rebuilding if `dist/` already exists.
 
+### Hosted demo (GitHub Pages)
+
+`.github/workflows/pages.yml` builds the bundle and publishes the demo to GitHub Pages
+on every push to `main`. One-time setup by a repo admin: **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. After that, the demo is served at
+`https://rahuljaiswal1808.github.io/vitalis/`.
+
+The MediaPipe wasm + face model still load from a CDN in the hosted demo; GitHub Pages
+serves the page over HTTPS, so `getUserMedia` works.
+
 ## License
 
 MIT.
