@@ -30,7 +30,7 @@ Depend on `vitalis-antispoof` (it re-exports core/camera/face) to build your own
 A browser port lives in [`web/`](web/) (npm package `vitalis-liveness`): a 1:1 TypeScript
 port of the core state machine plus adapters for `getUserMedia` (front-lens), MediaPipe
 face detection, and a drop-in overlay. Same config, states, and failure reasons as Android.
-See [web/README.md](web/README.md).
+See [web/README.md](web/README.md). A runnable browser demo is included — `cd web && npm install && npm run demo`, then open http://localhost:5173.
 
 ## Architecture at a glance
 
