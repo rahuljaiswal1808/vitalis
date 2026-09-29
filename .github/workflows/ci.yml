@@ -29,12 +29,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # Use the SDK preinstalled on the runner (ANDROID_SDK_ROOT is set); install the
+      # platform + build-tools this project compiles against. We invoke sdkmanager
+      # directly rather than android-actions/setup-android, whose default tries to
+      # install the long-removed "tools" package and fails on current runner images.
       - name: Install required SDK packages
         run: |
-          yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+          set -euo pipefail
+          SDKMGR="$(ls "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin/sdkmanager | head -1)"
+          echo "Using $SDKMGR"
+          yes | "$SDKMGR" --licenses >/dev/null 2>&1 || true
+          "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
 
       # Pure-JVM core tests: state machine + config. No device/SDK needed to run,
       # and the fastest signal if the shared engine logic regresses.
