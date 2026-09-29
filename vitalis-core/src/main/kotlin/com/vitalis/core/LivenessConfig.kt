@@ -40,6 +40,8 @@ data class LivenessConfig(
     val smileThreshold: Float = 0.7f,
     /** Smile probability the face must first be below to arm the SMILE transition. */
     val neutralSmileThreshold: Float = 0.3f,
+    /** Consecutive "before-state" frames required to arm a challenge (anti-noise). */
+    val challengeArmFrames: Int = 2,
     /** Whether [LivenessResult.Success] should carry the verified frame as JPEG bytes (F6, §11). */
     val returnCapturedFrame: Boolean = true,
     /** Passive tier: minimum "real" probability [0,1] to accept; below this -> SPOOF_SUSPECTED. */
@@ -69,6 +71,9 @@ data class LivenessConfig(
         }
         require(passiveRealProbThreshold in 0f..1f) {
             "passiveRealProbThreshold must be in [0,1], was $passiveRealProbThreshold"
+        }
+        require(challengeArmFrames >= 1) {
+            "challengeArmFrames must be >= 1, was $challengeArmFrames"
         }
     }
 

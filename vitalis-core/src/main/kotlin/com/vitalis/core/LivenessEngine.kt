@@ -37,7 +37,9 @@ class LivenessEngine(
 
     /** Per-challenge progress sub-state (transition tracking for blink/smile). */
     private var armed: Boolean = false           // saw the "before" side of a transition
+    private var armCount: Int = 0                 // consecutive "before-state" frames seen
     private var extremeReached: Boolean = false   // saw the peak (eyes closed / head fully turned)
+    private var peakYaw: Float = 0f               // yaw magnitude at the turn's peak
     private val challengeQuality = mutableListOf<Float>()
 
     /** The most recent phase; used to emit StateChanged only on genuine transitions. */
@@ -153,6 +155,17 @@ class LivenessEngine(
         ChallengeType.HEAD_TURN_RIGHT -> evaluateTurn(s, toRight = true)
     }
 
+    /** Arm only after the "before" state holds for [LivenessConfig.challengeArmFrames] frames. */
+    private fun tryArm(before: Boolean): Boolean {
+        if (before) {
+            armCount++
+            if (armCount >= config.challengeArmFrames) armed = true
+        } else {
+            armCount = 0
+        }
+        return armed
+    }
+
     private fun evaluateBlink(s: FaceSignals): Float? {
         val l = s.leftEyeOpenProbability
         val r = s.rightEyeOpenProbability
@@ -161,7 +174,7 @@ class LivenessEngine(
         val bothClosed = l < config.eyeClosedThreshold && r < config.eyeClosedThreshold
         // Require open -> closed -> open so a static photo of open eyes can't pass.
         if (!armed) {
-            if (bothOpen) armed = true
+            tryArm(bothOpen)
             return null
         }
         if (!extremeReached) {
@@ -179,7 +192,7 @@ class LivenessEngine(
         val p = s.smilingProbability
         if (p == FaceSignals.UNKNOWN) return null
         if (!armed) {
-            if (p < config.neutralSmileThreshold) armed = true
+            tryArm(p < config.neutralSmileThreshold)
             return null
         }
         return if (p > config.smileThreshold) p.coerceIn(0f, 1f) else null
@@ -189,13 +202,21 @@ class LivenessEngine(
         val yaw = s.yawDegrees
         val threshold = config.headTurnYawDegrees
         if (!armed) {
-            // Must start roughly frontal so a pre-turned photo can't pass.
-            if (abs(yaw) <= config.maxYawDegrees) armed = true
+            // Must start (and hold) roughly frontal so a pre-tilted photo can't pass.
+            tryArm(abs(yaw) <= config.maxYawDegrees)
             return null
         }
-        val reached = if (toRight) yaw >= threshold else yaw <= -threshold
-        if (reached) {
-            val margin = ((abs(yaw) - threshold) / threshold).coerceIn(0f, 1f)
+        if (!extremeReached) {
+            val reached = if (toRight) yaw >= threshold else yaw <= -threshold
+            if (reached) {
+                extremeReached = true
+                peakYaw = abs(yaw)
+            }
+            return null
+        }
+        // Require a return toward frontal: a deliberate turn-and-back, not a held angle.
+        if (abs(yaw) <= config.maxYawDegrees) {
+            val margin = ((peakYaw - threshold) / threshold).coerceIn(0f, 1f)
             return (0.6f + 0.4f * margin).coerceIn(0f, 1f)
         }
         return null
@@ -207,8 +228,7 @@ class LivenessEngine(
         val type = currentChallenge ?: return startVerifying()
         phase = Phase.AWAITING_CHALLENGE
         challengeStartMs = signals.timestampMs
-        armed = false
-        extremeReached = false
+        resetChallengeProgress()
         return emit(LivenessState.AwaitingChallenge(type))
     }
 
@@ -216,8 +236,7 @@ class LivenessEngine(
         challengeQuality.add(quality)
         challengeIndex++
         resetCount = 0
-        armed = false
-        extremeReached = false
+        resetChallengeProgress()
         return if (challengeIndex >= challengeQueue.size) {
             startVerifying()
         } else {
@@ -240,9 +259,15 @@ class LivenessEngine(
         }
         // Reset to searching; the challenge will be re-issued once a valid face returns.
         phase = Phase.SEARCHING
-        armed = false
-        extremeReached = false
+        resetChallengeProgress()
         return emit(LivenessState.SearchingFace)
+    }
+
+    private fun resetChallengeProgress() {
+        armed = false
+        armCount = 0
+        extremeReached = false
+        peakYaw = 0f
     }
 
     // --- helpers ----------------------------------------------------------

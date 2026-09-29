@@ -114,6 +114,14 @@ Results:
 - **Client-side liveness is defense-in-depth, not proof.** A determined attacker controls the
   browser and can feed a virtual camera. For higher assurance, combine with server-side checks
   and device attestation.
+- **Active challenges do not stop a video replay.** A recorded clip of a real person blinking,
+  turning, or smiling can satisfy the active tier — it verifies an action occurred, not that the
+  subject is live. Mitigations, in order of strength: require **several randomized challenges**
+  (`requiredChallengeCount` ≥ 2 over a varied `challengeTypes` set — a canned video is unlikely to
+  perform a random sequence on demand), add the **passive model tier** (not shipped — bring your
+  own), and gate the security decision **server-side** with device attestation. The engine also
+  requires a *deliberate* gesture (open→closed→open for blink, a turn-and-return for head-turn,
+  and a sustained neutral→smile transition) so a single still frame or held angle can't pass.
 
 ## Development
 

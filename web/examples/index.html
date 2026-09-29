@@ -54,6 +54,13 @@
   <header>
     <h1>Vitalis — Browser Liveness Demo</h1>
     <p>Front-camera lock · single-face gating · active challenge-response (blink / head-turn / smile)</p>
+    <p style="color:#d29922;font-size:13px;margin-top:8px;max-width:70ch">
+      ⚠ <b>Active-tier only.</b> This defeats a single still photo, but a <b>video replay</b> of a real
+      person (or a screen) can still pass — active challenges verify an action happened, not that it is
+      live. Randomised multi-challenge sequences (below) raise the bar; real anti-replay needs the
+      passive model tier (not shipped) plus server-side liveness and device attestation. Do not use
+      client-side liveness alone for a security decision.
+    </p>
   </header>
 
   <main>
@@ -68,10 +75,10 @@
       <div class="panel">
         <h2>Challenges</h2>
         <label class="row"><input type="checkbox" value="blink" checked /> Blink</label>
-        <label class="row"><input type="checkbox" value="head_turn_left" /> Head turn left</label>
-        <label class="row"><input type="checkbox" value="head_turn_right" /> Head turn right</label>
-        <label class="row"><input type="checkbox" value="smile" /> Smile</label>
-        <label class="row" style="margin-top:8px">Required count <input type="number" id="count" min="1" max="4" value="1" /></label>
+        <label class="row"><input type="checkbox" value="head_turn_left" checked /> Head turn left</label>
+        <label class="row"><input type="checkbox" value="head_turn_right" checked /> Head turn right</label>
+        <label class="row"><input type="checkbox" value="smile" checked /> Smile</label>
+        <label class="row" style="margin-top:8px">Required count <input type="number" id="count" min="1" max="4" value="2" /></label>
 
         <button id="start">Start liveness</button>
         <button id="stop" class="secondary" disabled>Stop</button>

@@ -258,6 +258,9 @@ already bundled in `vitalis-antispoof`.
 
 ## 12. Known limitations
 
+- **Video / screen replay passes the active tier** — it checks that an action happened, not that
+  the subject is live. Use several randomized challenges to raise the bar, and gate the real
+  decision server-side; the passive model tier is what actually rejects replays.
 - No passive model bundled (active-only until you add one).
 - No defense against 3D masks or camera-feed injection on rooted/emulated devices — pair
   Vitalis with app-layer attestation (e.g. Play Integrity) for that threat class.

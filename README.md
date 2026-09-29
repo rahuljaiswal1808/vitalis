@@ -107,6 +107,11 @@ VitalisLivenessScreen(config = LivenessConfig(), onResult = { … }, onError = {
   — shipping an un-evaluated model gives false confidence (§5). Supply your own model
   (trained/sourced on e.g. CelebA-Spoof / NUAA) and quote an eval number before enabling it.
   Until then Vitalis runs **active-challenge-only** and degrades gracefully.
+- **Video / screen replay of a real person.** The active tier verifies an action happened, not
+  that the subject is live, so a recorded clip can pass. Raise the bar with several randomized
+  challenges (`requiredChallengeCount` ≥ 2); close it with the passive model tier (not shipped)
+  plus server-side liveness and device attestation. Never make a security decision on client-side
+  liveness alone.
 - **3D mask attacks** and **camera-feed injection** on rooted/emulated devices — out of scope
   for v1 (§3). Pair Vitalis with app-layer attestation (e.g. Play Integrity) for that threat.
 - **Face matching / identity** — this is liveness only.

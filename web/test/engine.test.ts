@@ -9,8 +9,10 @@ function engine(partial = {}) {
   return new LivenessEngine(resolveConfig(partial), seeded);
 }
 
+// open (arm frame 1) -> open (arm frame 2, armed) -> closed -> open (blink complete)
 function blink(start: number, e: LivenessEngine, rec: Recorder) {
   rec.feed(e.onFrame(validFrontal(start, { leftEyeOpenProbability: 0.95, rightEyeOpenProbability: 0.95 })));
+  rec.feed(e.onFrame(validFrontal(start + 50, { leftEyeOpenProbability: 0.95, rightEyeOpenProbability: 0.95 })));
   rec.feed(e.onFrame(validFrontal(start + 100, { leftEyeOpenProbability: 0.1, rightEyeOpenProbability: 0.1 })));
   rec.feed(e.onFrame(validFrontal(start + 200, { leftEyeOpenProbability: 0.95, rightEyeOpenProbability: 0.95 })));
 }
@@ -85,22 +87,51 @@ describe("LivenessEngine", () => {
     const e = engine({ challengeTypes: ["head_turn_right"], headTurnYawDegrees: 22 });
     const rec = new Recorder();
     rec.feed(e.start(0));
-    rec.feed(e.onFrame(validFrontal(10)));
-    rec.feed(e.onFrame(validFrontal(20)));
-    rec.feed(e.onFrame(validFrontal(30)));
-    rec.feed(e.onFrame(validFrontal(40, { yawDegrees: 30 })));
+    rec.feed(e.onFrame(validFrontal(10)));                     // -> face_found
+    rec.feed(e.onFrame(validFrontal(20)));                     // -> awaiting_challenge(turn)
+    rec.feed(e.onFrame(validFrontal(30)));                     // frontal arm frame 1
+    rec.feed(e.onFrame(validFrontal(40)));                     // frontal arm frame 2 -> armed
+    rec.feed(e.onFrame(validFrontal(50, { yawDegrees: 30 }))); // turned right (peak)
+    rec.feed(e.onFrame(validFrontal(60)));                     // returned to frontal -> complete
     expect(rec.result()?.type).toBe("verified");
   });
 
-  it("smile requires a neutral->smile transition", () => {
+  it("head-turn held at an angle without returning does NOT pass", () => {
+    const e = engine({ challengeTypes: ["head_turn_right"], challengeTimeoutMs: 500, sessionTimeoutMs: 10000 });
+    const rec = new Recorder();
+    rec.feed(e.start(0));
+    rec.feed(e.onFrame(validFrontal(10)));
+    rec.feed(e.onFrame(validFrontal(20)));
+    rec.feed(e.onFrame(validFrontal(30)));
+    rec.feed(e.onFrame(validFrontal(40)));
+    rec.feed(e.onFrame(validFrontal(50, { yawDegrees: 30 }))); // reaches angle
+    rec.feed(e.onFrame(validFrontal(60, { yawDegrees: 30 }))); // held (like a tilted photo)
+    rec.feed(e.onTick(1000));
+    expect(rec.result()).toEqual({ type: "rejected", reason: "challenge_timeout" });
+  });
+
+  it("smile requires a sustained neutral then a smile transition", () => {
     const e = engine({ challengeTypes: ["smile"] });
     const rec = new Recorder();
     rec.feed(e.start(0));
     rec.feed(e.onFrame(validFrontal(10)));
     rec.feed(e.onFrame(validFrontal(20))); // -> awaiting_challenge(smile)
-    rec.feed(e.onFrame(validFrontal(30, { smilingProbability: 0.1 }))); // arm neutral
-    rec.feed(e.onFrame(validFrontal(40, { smilingProbability: 0.9 }))); // smile
+    rec.feed(e.onFrame(validFrontal(30, { smilingProbability: 0.1 }))); // neutral arm frame 1
+    rec.feed(e.onFrame(validFrontal(40, { smilingProbability: 0.1 }))); // neutral arm frame 2 -> armed
+    rec.feed(e.onFrame(validFrontal(50, { smilingProbability: 0.9 }))); // smile
     expect(rec.result()?.type).toBe("verified");
+  });
+
+  it("static smiling image never arms the smile challenge (always smiling), then times out", () => {
+    const e = engine({ challengeTypes: ["smile"], challengeTimeoutMs: 500, sessionTimeoutMs: 10000 });
+    const rec = new Recorder();
+    rec.feed(e.start(0));
+    rec.feed(e.onFrame(validFrontal(10, { smilingProbability: 0.95 })));
+    rec.feed(e.onFrame(validFrontal(20, { smilingProbability: 0.95 })));
+    // Never drops below neutral, so the transition can't arm.
+    rec.feed(e.onFrame(validFrontal(30, { smilingProbability: 0.95 })));
+    rec.feed(e.onTick(1000));
+    expect(rec.result()).toEqual({ type: "rejected", reason: "challenge_timeout" });
   });
 
   it("face loss during challenge resets then recovers", () => {
