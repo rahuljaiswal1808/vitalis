@@ -43,7 +43,9 @@ export class LivenessEngine {
   private resetCount = 0;
   private lastInvalidReason: Invalid = "no_face";
   private armed = false;
+  private armCount = 0;
   private extremeReached = false;
+  private peakYaw = 0;
   private challengeQuality: number[] = [];
   private lastEmittedState: LivenessState | null = null;
   private lastTimestamp = 0;
@@ -168,6 +170,17 @@ export class LivenessEngine {
     }
   }
 
+  /** Arm only after the "before" state holds for challengeArmFrames consecutive frames. */
+  private tryArm(before: boolean): boolean {
+    if (before) {
+      this.armCount++;
+      if (this.armCount >= this.config.challengeArmFrames) this.armed = true;
+    } else {
+      this.armCount = 0;
+    }
+    return this.armed;
+  }
+
   private evaluateBlink(s: FaceSignals): number | null {
     const l = s.leftEyeOpenProbability;
     const r = s.rightEyeOpenProbability;
@@ -175,13 +188,14 @@ export class LivenessEngine {
     const bothOpen = l > this.config.eyeOpenThreshold && r > this.config.eyeOpenThreshold;
     const bothClosed = l < this.config.eyeClosedThreshold && r < this.config.eyeClosedThreshold;
     if (!this.armed) {
-      if (bothOpen) this.armed = true;
+      this.tryArm(bothOpen);
       return null;
     }
     if (!this.extremeReached) {
       if (bothClosed) this.extremeReached = true;
       return null;
     }
+    // Must reopen after closing — a full open -> closed -> open cycle.
     if (bothOpen) {
       const depth = 1 - clamp((l + r) / 2, 0, 1);
       return clamp(0.5 + 0.5 * depth, 0, 1);
@@ -193,7 +207,7 @@ export class LivenessEngine {
     const p = s.smilingProbability;
     if (p === UNKNOWN) return null;
     if (!this.armed) {
-      if (p < this.config.neutralSmileThreshold) this.armed = true;
+      this.tryArm(p < this.config.neutralSmileThreshold);
       return null;
     }
     return p > this.config.smileThreshold ? clamp(p, 0, 1) : null;
@@ -203,12 +217,22 @@ export class LivenessEngine {
     const yaw = s.yawDegrees;
     const threshold = this.config.headTurnYawDegrees;
     if (!this.armed) {
-      if (Math.abs(yaw) <= this.config.maxYawDegrees) this.armed = true;
+      // Must start (and hold) roughly frontal so a pre-tilted photo can't pass.
+      this.tryArm(Math.abs(yaw) <= this.config.maxYawDegrees);
       return null;
     }
-    const reached = toRight ? yaw >= threshold : yaw <= -threshold;
-    if (reached) {
-      const margin = clamp((Math.abs(yaw) - threshold) / threshold, 0, 1);
+    if (!this.extremeReached) {
+      const reached = toRight ? yaw >= threshold : yaw <= -threshold;
+      if (reached) {
+        this.extremeReached = true;
+        this.peakYaw = Math.abs(yaw);
+      }
+      return null;
+    }
+    // Require a return toward frontal: the gesture is a deliberate turn-and-back,
+    // not a statically-held angle (which a tilted photo could fake).
+    if (Math.abs(yaw) <= this.config.maxYawDegrees) {
+      const margin = clamp((this.peakYaw - threshold) / threshold, 0, 1);
       return clamp(0.6 + 0.4 * margin, 0, 1);
     }
     return null;
@@ -221,8 +245,7 @@ export class LivenessEngine {
     if (!type) return this.startVerifying();
     this.phase = "awaiting_challenge";
     this.challengeStartMs = signals.timestampMs;
-    this.armed = false;
-    this.extremeReached = false;
+    this.resetChallengeProgress();
     return this.emit({ kind: "awaiting_challenge", challenge: type });
   }
 
@@ -230,8 +253,7 @@ export class LivenessEngine {
     this.challengeQuality.push(quality);
     this.challengeIndex++;
     this.resetCount = 0;
-    this.armed = false;
-    this.extremeReached = false;
+    this.resetChallengeProgress();
     if (this.challengeIndex >= this.challengeQueue.length) {
       return this.startVerifying();
     }
@@ -252,9 +274,15 @@ export class LivenessEngine {
       return this.reject("challenge_failed");
     }
     this.phase = "searching";
-    this.armed = false;
-    this.extremeReached = false;
+    this.resetChallengeProgress();
     return this.emit({ kind: "searching_face" });
+  }
+
+  private resetChallengeProgress(): void {
+    this.armed = false;
+    this.armCount = 0;
+    this.extremeReached = false;
+    this.peakYaw = 0;
   }
 
   // --- helpers ----------------------------------------------------------

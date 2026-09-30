@@ -148,6 +148,7 @@ and throws `IllegalArgumentException` with a specific message on bad input.
 | `headTurnYawDegrees` | `22` | Yaw magnitude that satisfies a HEAD_TURN. Must exceed `maxYawDegrees`. |
 | `smileThreshold` | `0.7` | Smile prob that satisfies SMILE. |
 | `neutralSmileThreshold` | `0.3` | Smile prob the face must first drop below to arm SMILE. Must be `<` `smileThreshold`. |
+| `challengeArmFrames` | `2` | Consecutive "before-state" frames required before a challenge arms (anti-noise). Higher = stricter, but needs a steadier hold. |
 | `returnCapturedFrame` | `true` | If true, `Success.capturedFrame` holds the verified frame as JPEG bytes; else empty. |
 | `passiveRealProbThreshold` | `0.5` | Min "real" probability from the passive model to accept; below ⇒ `SPOOF_SUSPECTED`. |
 
@@ -156,8 +157,18 @@ and throws `IllegalArgumentException` with a specific message on bad input.
 - **Stronger liveness:** raise `requiredChallengeCount` to 2–3 and include multiple
   `challengeTypes` so the action sequence is unpredictable.
 - **Faster/looser (kiosk, good lighting):** single BLINK, larger `challengeTimeoutMs`.
-- **Challenges each require a *transition*** (eyes open→closed→open; neutral→smile;
-  frontal→turned), so a static photo held to the camera cannot satisfy them.
+- **Challenges each require a deliberate *transition*, not a held pose**, so a single still
+  frame or a statically-held angle cannot satisfy them:
+  - **Blink:** eyes open → closed → open.
+  - **Smile:** a sustained neutral (below `neutralSmileThreshold` for `challengeArmFrames`
+    frames) → smile (above `smileThreshold`). A permanently-smiling photo never arms.
+  - **Head turn:** start frontal → reach `headTurnYawDegrees` → **return toward frontal**
+    (a turn-and-back motion, not a fixed tilt).
+- **This does not stop a video/screen replay.** Active challenges verify an action happened,
+  not that the subject is live — a recorded clip of a real person can pass. Raise the bar with
+  randomized multi-challenge sequences (above); to actually reject replays, add the passive
+  model tier (not shipped) and gate the decision server-side with device attestation. Never make
+  a security decision on client-side liveness alone. (See §12.)
 
 ---
 
@@ -258,6 +269,9 @@ already bundled in `vitalis-antispoof`.
 
 ## 12. Known limitations
 
+- **Video / screen replay passes the active tier** — it checks that an action happened, not that
+  the subject is live. Use several randomized challenges to raise the bar, and gate the real
+  decision server-side; the passive model tier is what actually rejects replays.
 - No passive model bundled (active-only until you add one).
 - No defense against 3D masks or camera-feed injection on rooted/emulated devices — pair
   Vitalis with app-layer attestation (e.g. Play Integrity) for that threat class.

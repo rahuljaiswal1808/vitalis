@@ -36,6 +36,8 @@ export interface LivenessConfig {
   smileThreshold: number;
   /** Smile prob the face must first drop below to arm SMILE. */
   neutralSmileThreshold: number;
+  /** Consecutive "before-state" frames required to arm a challenge (anti-noise). */
+  challengeArmFrames: number;
   /** Whether Success carries the verified frame as a JPEG Blob. */
   returnCapturedFrame: boolean;
   /** Passive tier: min "real" probability [0,1] to accept. */
@@ -58,6 +60,7 @@ export const DEFAULT_CONFIG: LivenessConfig = {
   headTurnYawDegrees: 22,
   smileThreshold: 0.7,
   neutralSmileThreshold: 0.3,
+  challengeArmFrames: 2,
   returnCapturedFrame: true,
   passiveRealProbThreshold: 0.5,
 };
@@ -83,6 +86,8 @@ export function validateConfig(c: LivenessConfig): void {
     throw new Error(`neutralSmileThreshold (${c.neutralSmileThreshold}) must be < smileThreshold (${c.smileThreshold})`);
   if (!inRange(c.passiveRealProbThreshold, 0, 1))
     throw new Error(`passiveRealProbThreshold must be in [0,1], was ${c.passiveRealProbThreshold}`);
+  if (c.challengeArmFrames < 1)
+    throw new Error(`challengeArmFrames must be >= 1, was ${c.challengeArmFrames}`);
 }
 
 /** Merge a partial config over defaults and validate. */

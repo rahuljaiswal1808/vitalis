@@ -11,8 +11,9 @@ class LivenessEngineTest {
         LivenessEngine(config, random = Random(42))
 
     private fun blinkFrames(start: Long, e: LivenessEngine, rec: Recorder) {
-        // open -> closed -> open satisfies the blink transition
+        // open (arm 1) -> open (arm 2, armed) -> closed -> open satisfies the blink transition
         rec.feed(e.onFrame(TestSignals.validFrontal(start, leftEye = 0.95f, rightEye = 0.95f)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(start + 50, leftEye = 0.95f, rightEye = 0.95f)))
         rec.feed(e.onFrame(TestSignals.validFrontal(start + 100, leftEye = 0.1f, rightEye = 0.1f)))
         rec.feed(e.onFrame(TestSignals.validFrontal(start + 200, leftEye = 0.95f, rightEye = 0.95f)))
     }
@@ -110,11 +111,48 @@ class LivenessEngineTest {
         val e = engine(cfg)
         val rec = Recorder()
         rec.feed(e.start(0))
-        rec.feed(e.onFrame(TestSignals.validFrontal(10)))
-        rec.feed(e.onFrame(TestSignals.validFrontal(20)))     // arm frontal + AwaitingChallenge
-        rec.feed(e.onFrame(TestSignals.validFrontal(30)))     // still frontal -> armed
-        rec.feed(e.onFrame(TestSignals.validFrontal(40, yaw = 30f))) // turned right
+        rec.feed(e.onFrame(TestSignals.validFrontal(10)))          // -> FaceFound
+        rec.feed(e.onFrame(TestSignals.validFrontal(20)))          // -> AwaitingChallenge(turn)
+        rec.feed(e.onFrame(TestSignals.validFrontal(30)))          // frontal arm 1
+        rec.feed(e.onFrame(TestSignals.validFrontal(40)))          // frontal arm 2 -> armed
+        rec.feed(e.onFrame(TestSignals.validFrontal(50, yaw = 30f))) // turned right (peak)
+        rec.feed(e.onFrame(TestSignals.validFrontal(60)))          // returned to frontal -> complete
         assertTrue(rec.result() is EngineEvent.Verified)
+    }
+
+    @Test
+    fun headTurnHeldWithoutReturn_doesNotPass() {
+        val cfg = LivenessConfig(
+            challengeTypes = setOf(ChallengeType.HEAD_TURN_RIGHT),
+            challengeTimeoutMs = 500, sessionTimeoutMs = 10_000
+        )
+        val e = engine(cfg)
+        val rec = Recorder()
+        rec.feed(e.start(0))
+        rec.feed(e.onFrame(TestSignals.validFrontal(10)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(20)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(30)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(40)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(50, yaw = 30f))) // reaches angle
+        rec.feed(e.onFrame(TestSignals.validFrontal(60, yaw = 30f))) // held like a tilted photo
+        rec.feed(e.onTick(1000))
+        assertEquals(EngineEvent.Rejected(FailureReason.CHALLENGE_TIMEOUT), rec.result())
+    }
+
+    @Test
+    fun staticSmilingImage_neverArmsSmile_thenTimeout() {
+        val cfg = LivenessConfig(
+            challengeTypes = setOf(ChallengeType.SMILE),
+            challengeTimeoutMs = 500, sessionTimeoutMs = 10_000
+        )
+        val e = engine(cfg)
+        val rec = Recorder()
+        rec.feed(e.start(0))
+        rec.feed(e.onFrame(TestSignals.validFrontal(10, smile = 0.95f)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(20, smile = 0.95f)))
+        rec.feed(e.onFrame(TestSignals.validFrontal(30, smile = 0.95f))) // always smiling, never arms
+        rec.feed(e.onTick(1000))
+        assertEquals(EngineEvent.Rejected(FailureReason.CHALLENGE_TIMEOUT), rec.result())
     }
 
     @Test
